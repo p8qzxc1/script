@@ -69,19 +69,22 @@ local function GetClosestPlayer()
 		RequiredDistance = (Environment.FOVSettings.Enabled and Environment.FOVSettings.Amount or 2000)
 
 		for _, v in next, Players:GetPlayers() do
-			if v ~= LocalPlayer then
-				if v.Character and v.Character:FindFirstChild(Environment.Settings.LockPart) and v.Character:FindFirstChildOfClass("Humanoid") then
-					if Environment.Settings.TeamCheck and v.Team == LocalPlayer.Team then continue end
-					if Environment.Settings.AliveCheck and v.Character:FindFirstChildOfClass("Humanoid").Health <= 0 then continue end
-					if Environment.Settings.WallCheck and #(Camera:GetPartsObscuringTarget({v.Character[Environment.Settings.LockPart].Position}, v.Character:GetDescendants())) > 0 then continue end
+			if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild(Environment.Settings.LockPart) and v.Character:FindFirstChildOfClass("Humanoid") then
+				local humanoid = v.Character:FindFirstChildOfClass("Humanoid")
+				if (Environment.Settings.TeamCheck and v.Team == LocalPlayer.Team) or (Environment.Settings.AliveCheck and humanoid.Health <= 0) then
+					continue
+				end
 
-					local Vector, OnScreen = Camera:WorldToViewportPoint(v.Character[Environment.Settings.LockPart].Position)
-					local Distance = (Vector2(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y) - Vector2(Vector.X, Vector.Y)).Magnitude
+				if Environment.Settings.WallCheck and #(Camera:GetPartsObscuringTarget({v.Character[Environment.Settings.LockPart].Position}, v.Character:GetDescendants())) > 0 then
+					continue
+				end
 
-					if Distance < RequiredDistance and OnScreen then
-						RequiredDistance = Distance
-						Environment.Locked = v
-					end
+				local Vector, OnScreen = Camera:WorldToViewportPoint(v.Character[Environment.Settings.LockPart].Position)
+				local Distance = (Vector2(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y) - Vector2(Vector.X, Vector.Y)).Magnitude
+
+				if Distance < RequiredDistance and OnScreen then
+					RequiredDistance = Distance
+					Environment.Locked = v
 				end
 			end
 		end
@@ -135,58 +138,29 @@ local function Load()
 					end
 				end
 
-			Environment.FOVCircle.Color = Environment.FOVSettings.LockedColor
-
+				Environment.FOVCircle.Color = Environment.FOVSettings.LockedColor
 			end
 		end
 	end)
 
 	ServiceConnections.InputBeganConnection = UserInputService.InputBegan:Connect(function(Input)
 		if not Typing then
-			pcall(function()
-				if Input.KeyCode == Enum.KeyCode[Environment.Settings.TriggerKey] then
-					if Environment.Settings.Toggle then
-						Running = not Running
-
-						if not Running then
-							CancelLock()
-						end
-					else
-						Running = true
-					end
+			if Input.KeyCode == Enum.KeyCode[Environment.Settings.TriggerKey] or Input.UserInputType == Enum.UserInputType[Environment.Settings.TriggerKey] then
+				if Environment.Settings.Toggle then
+					Running = not Running
+					if not Running then CancelLock() end
+				else
+					Running = true
 				end
-			end)
-
-			pcall(function()
-				if Input.UserInputType == Enum.UserInputType[Environment.Settings.TriggerKey] then
-					if Environment.Settings.Toggle then
-						Running = not Running
-
-						if not Running then
-							CancelLock()
-						end
-					else
-						Running = true
-					end
-				end
-			end)
+			end
 		end
 	end)
 
 	ServiceConnections.InputEndedConnection = UserInputService.InputEnded:Connect(function(Input)
-		if not Typing then
-			if not Environment.Settings.Toggle then
-				pcall(function()
-					if Input.KeyCode == Enum.KeyCode[Environment.Settings.TriggerKey] then
-						Running = false; CancelLock()
-					end
-				end)
-
-				pcall(function()
-					if Input.UserInputType == Enum.UserInputType[Environment.Settings.TriggerKey] then
-						Running = false; CancelLock()
-					end
-				end)
+		if not Typing and not Environment.Settings.Toggle then
+			if Input.KeyCode == Enum.KeyCode[Environment.Settings.TriggerKey] or Input.UserInputType == Enum.UserInputType[Environment.Settings.TriggerKey] then
+				Running = false
+				CancelLock()
 			end
 		end
 	end)
@@ -201,12 +175,16 @@ function Environment.Functions:Exit()
 		v:Disconnect()
 	end
 
-	if Environment.FOVCircle.Remove then Environment.FOVCircle:Remove() end
+	if Environment.FOVCircle.Remove then
+		Environment.FOVCircle:Remove()
+	end
 
 	getgenv().Aimbot.Functions = nil
 	getgenv().Aimbot = nil
-	
-	Load = nil; GetClosestPlayer = nil; CancelLock = nil
+
+	Load = nil
+	GetClosestPlayer = nil
+	CancelLock = nil
 end
 
 function Environment.Functions:Restart()
@@ -223,12 +201,12 @@ function Environment.Functions:ResetSettings()
 		TeamCheck = false,
 		AliveCheck = true,
 		WallCheck = false,
-		Sensitivity = 0, -- Animation length (in seconds) before fully locking onto target
-		ThirdPerson = false, -- Uses mousemoverel instead of CFrame to support locking in third person (could be choppy)
-		ThirdPersonSensitivity = 3, -- Boundary: 0.1 - 5
+		Sensitivity = 0,
+		ThirdPerson = false,
+		ThirdPersonSensitivity = 3,
 		TriggerKey = "MouseButton2",
 		Toggle = false,
-		LockPart = "Head" -- Body part to lock on
+		LockPart = "Head"
 	}
 
 	Environment.FOVSettings = {
